@@ -59,6 +59,7 @@ while (true)
     await foreach (var response in chat.GetStreamingChatMessageContentsAsync(chatHistory))
     {
         Console.Write(response);
+        await Task.Delay(100);
     }
     
     Console.ForegroundColor = ConsoleColor.Yellow;
