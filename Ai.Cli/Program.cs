@@ -28,6 +28,14 @@ builder.Services.AddScoped<Kernel>(_ =>
         apiKey: azureOpenAi.ApiKey,
         modelId: azureOpenAi.ModelId);
 
+// #pragma warning disable SKEXP0010
+//     kernelBuilder.AddOpenAIChatCompletion(
+//         modelId: "phi3",
+//         apiKey: null,
+//         endpoint: new Uri("http://localhost:11434/v1")
+//     );
+// #pragma warning restore SKEXP0010
+
     kernelBuilder.Plugins.AddFromType<TimeTeller>();
     kernelBuilder.Plugins.AddFromType<ElectricCar>();
     kernelBuilder.Plugins.AddFromType<TripPlanner>();
@@ -86,6 +94,8 @@ while (true)
         chatHistory: chatHistory,
         kernel: kernel,
         executionSettings: openAiSettings);
+
+    // var result = chat.GetStreamingChatMessageContentsAsync(chatHistory: chatHistory); // Without settings
 
     var assistantMessage = "";
     await foreach (var response in result)
