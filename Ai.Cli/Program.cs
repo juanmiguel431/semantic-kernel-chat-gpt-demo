@@ -5,6 +5,8 @@
 // https://dzone.com/articles/zero-to-ai-hero-part-three-power-of-agents
 // https://dzone.com/articles/zero-to-ai-hero-part-four-local-language-models
 
+// https://learn.microsoft.com/en-us/semantic-kernel/concepts/kernel?pivots=programming-language-csharp
+
 using Ai.Cli;
 using Ai.Cli.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -18,31 +20,49 @@ var builder = Host.CreateApplicationBuilder(args);
 
 var azureOpenAi = builder.Configuration.GetSection("AzureOpenAI").Get<AzureOpenAI>()!;
 
-builder.Services.AddScoped<Kernel>(_ =>
-{
-    var kernelBuilder = Kernel.CreateBuilder();
-
-    kernelBuilder.AddAzureOpenAIChatCompletion(
-        deploymentName: azureOpenAi.DeploymentName,
-        endpoint: azureOpenAi.Endpoint,
-        apiKey: azureOpenAi.ApiKey,
-        modelId: azureOpenAi.ModelId);
+// Add the OpenAI chat completion service as a singleton
+builder.Services.AddAzureOpenAIChatCompletion(
+    deploymentName: azureOpenAi.DeploymentName,
+    endpoint: azureOpenAi.Endpoint,
+    apiKey: azureOpenAi.ApiKey,
+    modelId: azureOpenAi.ModelId
+);
 
 // #pragma warning disable SKEXP0010
-//     kernelBuilder.AddOpenAIChatCompletion(
-//         modelId: "phi3",
-//         apiKey: null,
-//         endpoint: new Uri("http://localhost:11434/v1")
-//     );
+// builder.Services.AddOpenAIChatCompletion(
+//     modelId: "phi3",
+//     apiKey: null,
+//     endpoint: new Uri("http://localhost:11434/v1")
+// );
 // #pragma warning restore SKEXP0010
 
-    kernelBuilder.Plugins.AddFromType<TimeTeller>();
-    kernelBuilder.Plugins.AddFromType<ElectricCar>();
-    kernelBuilder.Plugins.AddFromType<TripPlanner>();
-    kernelBuilder.Plugins.AddFromType<WeatherForecaster>();
 
-    var kernel = kernelBuilder.Build();
-    return kernel;
+// Create singletons of your plugins
+builder.Services.AddSingleton<TimeTeller>();
+builder.Services.AddSingleton<ElectricCar>();
+builder.Services.AddSingleton<TripPlanner>();
+builder.Services.AddSingleton<WeatherForecaster>();
+
+// builder.Services.AddSingleton(() => new TimeTeller());
+// builder.Services.AddSingleton(() => new ElectricCar());
+// builder.Services.AddSingleton(() => new TripPlanner());
+// builder.Services.AddSingleton(() => new WeatherForecaster());
+
+
+// Create the plugin collection (using the KernelPluginFactory to create plugins from objects)
+builder.Services.AddSingleton<KernelPluginCollection>(serviceProvider => 
+    [
+        KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<TimeTeller>()),
+        KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<ElectricCar>()),
+        KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<TripPlanner>()),
+        KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<WeatherForecaster>()),
+    ]
+);
+
+// Finally, create the Kernel service with the service provider and plugin collection
+builder.Services.AddTransient(serviceProvider=> {
+    var pluginCollection = serviceProvider.GetRequiredService<KernelPluginCollection>();
+    return new Kernel(serviceProvider, pluginCollection);
 });
 
 var app = builder.Build();
