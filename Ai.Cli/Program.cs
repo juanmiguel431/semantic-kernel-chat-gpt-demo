@@ -1,4 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
+// https://dzone.com/users/4857648/aneeshlalga.html
+// https://dzone.com/articles/zero-to-ai-hero-part-one-semantic-kernel
+// https://dzone.com/articles/zero-to-ai-hero-part-two-semantic-kernel-plugins
+// https://dzone.com/articles/zero-to-ai-hero-part-three-power-of-agents
+// https://dzone.com/articles/zero-to-ai-hero-part-four-local-language-models
 
 using Ai.Cli;
 using Ai.Cli.Plugins;
@@ -11,9 +16,9 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-var azureOpenAi = builder.Configuration.GetSection("AzureOpenAI").Get<AzureOpenAI>();
+var azureOpenAi = builder.Configuration.GetSection("AzureOpenAI").Get<AzureOpenAI>()!;
 
-builder.Services.AddSingleton<Kernel>(serviceProvider =>
+builder.Services.AddScoped<Kernel>(_ =>
 {
     var kernelBuilder = Kernel.CreateBuilder();
 
@@ -25,7 +30,9 @@ builder.Services.AddSingleton<Kernel>(serviceProvider =>
 
     kernelBuilder.Plugins.AddFromType<TimeTeller>();
     kernelBuilder.Plugins.AddFromType<ElectricCar>();
-    
+    kernelBuilder.Plugins.AddFromType<TripPlanner>();
+    kernelBuilder.Plugins.AddFromType<WeatherForecaster>();
+
     var kernel = kernelBuilder.Build();
     return kernel;
 });
@@ -37,16 +44,24 @@ var chat = kernel.GetRequiredService<IChatCompletionService>();
 
 var chatHistory = new ChatHistory();
 
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("AI: What am I?");
-Console.ForegroundColor = ConsoleColor.Yellow;
+// Console.ForegroundColor = ConsoleColor.Green;
+// Console.WriteLine("AI: What am I?");
+// Console.ForegroundColor = ConsoleColor.Yellow;
+//
+// Console.Write("Juan Miguel: ");
+// var whatAmI = Console.ReadLine();
+// chatHistory.AddSystemMessage(whatAmI!);
 
-Console.Write("Juan Miguel: ");
-var whatAmI = Console.ReadLine();
-chatHistory.AddSystemMessage(whatAmI!);
+chatHistory.AddSystemMessage(
+    """
+    You are a friendly assistant who likes to follow the rules. You will complete required steps
+    and request approval before taking any consequential actions. If the user doesn't provide
+    enough information for you to complete a task, you will keep asking questions until you have
+    enough information to complete the task.
+    """);
 
 Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("AI: Cool! How can I help?");
+Console.WriteLine("AI: How can I help you today?");
 Console.ForegroundColor = ConsoleColor.Yellow;
 
 var openAiSettings = new OpenAIPromptExecutionSettings
@@ -67,15 +82,21 @@ while (true)
 // var response = await chat.GetChatMessageContentsAsync(chatHistory);
 // var lastMessage = response.Last();
 
-    await foreach (var response in chat.GetStreamingChatMessageContentsAsync(
-                       chatHistory: chatHistory,
-                       kernel: kernel,
-                       executionSettings: openAiSettings))
+    var result = chat.GetStreamingChatMessageContentsAsync(
+        chatHistory: chatHistory,
+        kernel: kernel,
+        executionSettings: openAiSettings);
+
+    var assistantMessage = "";
+    await foreach (var response in result)
     {
+        assistantMessage += response.Content;
         Console.Write(response);
         await Task.Delay(100);
     }
-    
+
+    chatHistory.AddAssistantMessage(assistantMessage);
+
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine();
 }
