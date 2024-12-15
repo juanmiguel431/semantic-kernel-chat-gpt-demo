@@ -183,7 +183,7 @@ public class Program
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write("AI: ");
 
-            var result = agent.InvokeAsync(history: chatHistory, arguments: null, kernel: kernel);
+            var result = agent.InvokeAsync(history: chatHistory);
 
             var assistantMessage = "";
             await foreach (var response in result)
