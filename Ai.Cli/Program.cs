@@ -10,6 +10,7 @@
 #pragma warning disable SKEXP0110
 #pragma warning disable SKEXP0001
 
+using Ai.Cli.Models;
 using Ai.Cli.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,8 @@ namespace Ai.Cli;
 
 public class Program
 {
+    private static int _merchantId;
+
     public static async Task Main(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
@@ -78,11 +81,14 @@ public class Program
             .WithAzureOpenAITextEmbeddingGeneration(textEmbeddingConfig)
             .WithAzureAISearchMemoryDb(aiSearchConfig)
             .Build();
-        
-        // await ImportDocument1(memory);
-        // await ImportDocument2(memory);
 
-        // await memory.DeleteDocumentAsync("");
+        _merchantId = 1;
+        
+        // var documentId1 = await ImportDocument1(memory);
+        // await memory.DeleteDocumentAsync(documentId1);
+        
+        // var documentId2 = await ImportDocument2(memory);
+        // return;
 
         builder.Services.AddSingleton<IKernelMemory>(_ => memory);
 
@@ -109,6 +115,11 @@ public class Program
                 KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<AppMemory>()),
             ]
         );
+
+        builder.Services.AddScoped(_ => new AppAiContext
+        {
+            MerchantId = _merchantId
+        });
 
         // Finally, create the Kernel service with the service provider and plugin collection
         builder.Services.AddTransient(serviceProvider =>
@@ -213,6 +224,8 @@ public class Program
             new KeyValuePair<string, List<string?>>("Education", ["Disease Awareness", "Health Education", "Prevention"])
         };
         
+        tags.Add("MerchantId", [_merchantId.ToString()]);
+        
         var documentId = await memory.ImportDocumentAsync(
             content: memoryStream,
             fileName: "Diabetes ES.pdf",
@@ -262,6 +275,8 @@ public class Program
                 "Sample Menu Plan"
             ])
         };
+        
+        tags.Add("MerchantId", [_merchantId.ToString()]);
         
         var documentId = await memory.ImportDocumentAsync(
             content: memoryStream,
