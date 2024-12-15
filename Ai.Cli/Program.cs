@@ -10,7 +10,6 @@
 #pragma warning disable SKEXP0110
 #pragma warning disable SKEXP0001
 
-using Ai.Cli;
 using Ai.Cli.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +30,7 @@ public class Program
 
         var azureOpenAi = builder.Configuration.GetSection("AzureOpenAI").Get<AzureOpenAI>()!;
         var azureOpenAiTextEmbedding = builder.Configuration.GetSection("AzureOpenAITextEmbedding").Get<AzureOpenAI>()!;
+        var azureAiSearch = builder.Configuration.GetSection("AzureAISearch").Get<AzureOpenAI>()!;
 
         // Add the OpenAI chat completion service as a singleton
         builder.Services.AddAzureOpenAIChatCompletion(
@@ -66,25 +66,23 @@ public class Program
             Auth = AzureOpenAIConfig.AuthTypes.APIKey
         };
 
+        var aiSearchConfig = new AzureAISearchConfig
+        {
+            APIKey = azureAiSearch.ApiKey,
+            Endpoint = azureAiSearch.Endpoint,
+            Auth = AzureAISearchConfig.AuthTypes.APIKey,
+        };
+
         var memory = new KernelMemoryBuilder()
             .WithAzureOpenAITextGeneration(chatConfig)
             .WithAzureOpenAITextEmbeddingGeneration(textEmbeddingConfig)
-            .Build<MemoryServerless>();
+            .WithAzureAISearchMemoryDb(aiSearchConfig)
+            .Build();
+        
+        // await ImportDocument1(memory);
+        // await ImportDocument2(memory);
 
-        const string filePath = @"C:\Cloud\OneDrive\Documents\MemberCare\AI Knowledge\Diabetes ES.pdf";
-        var fileBytes = await File.ReadAllBytesAsync(filePath);
-
-        using var memoryStream = new MemoryStream(fileBytes);
-
-        var tags = new TagCollection
-        {
-            new KeyValuePair<string, List<string?>>("Health", ["Diabetes", "Chronic Diseases", "Glucose", "Endocrinology"]),
-            new KeyValuePair<string, List<string?>>("Education", ["Disease Awareness", "Health Education", "Prevention"])
-        };
-
-        await memory.ImportDocumentAsync(memoryStream, fileName: "Diabetes ES.pdf", tags: tags);
-
-        builder.Services.AddSingleton<MemoryServerless>(_ => memory);
+        builder.Services.AddSingleton<IKernelMemory>(_ => memory);
 
         // Create singletons of your plugins
         builder.Services.AddSingleton<TimeTeller>();
@@ -198,5 +196,74 @@ public class Program
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine();
         }
+    }
+
+    private static async Task ImportDocument1(IKernelMemory memory)
+    {
+        const string filePath = @"C:\Cloud\OneDrive\Documents\MemberCare\AI Knowledge\Diabetes ES.pdf";
+        var fileBytes = await File.ReadAllBytesAsync(filePath);
+            
+        using var memoryStream = new MemoryStream(fileBytes);
+            
+        var tags = new TagCollection
+        {
+            new KeyValuePair<string, List<string?>>("Health", ["Diabetes", "Chronic Diseases", "Glucose", "Endocrinology"]),
+            new KeyValuePair<string, List<string?>>("Education", ["Disease Awareness", "Health Education", "Prevention"])
+        };
+            
+        await memory.ImportDocumentAsync(
+            content: memoryStream,
+            fileName: "Diabetes ES.pdf",
+            tags: tags,
+            index: "default"
+        );
+    }
+    
+    private static async Task ImportDocument2(IKernelMemory memory)
+    {
+        const string filePath = @"C:\Cloud\OneDrive\Documents\MemberCare\AI Knowledge\Nutrition.pdf";
+        var fileBytes = await File.ReadAllBytesAsync(filePath);
+            
+        using var memoryStream = new MemoryStream(fileBytes);
+            
+        var tags = new TagCollection
+        {
+            new KeyValuePair<string, List<string?>>("Health", [
+                "Plant-Based Nutrition",
+                "Healthy Eating",
+                "Food as Medicine",
+                "Dietary Spectrum",
+                "Nutritional Guide",
+                "Whole Foods",
+                "Healthy Lifestyle"
+            ]),
+            new KeyValuePair<string, List<string?>>("Cooking", [
+                "Vegan Recipes",
+                "Plant-Based Recipes",
+                "Cooking Essentials",
+                "Quick Recipes",
+                "Kitchen Tips"
+            ]),
+            new KeyValuePair<string, List<string?>>("Recipes", [
+                "Breakfast Recipes",
+                "Lunch Recipes",
+                "Dinner Recipes",
+                "Snack Ideas",
+                "Desserts",
+                "Smoothie Recipes",
+                "Plant-Based Meal Prep"
+            ]),
+            new KeyValuePair<string, List<string?>>("Lifestyle", [
+                "Meal Planning",
+                "Sample Menu Plan"
+            ])
+        };
+        
+        await memory.ImportDocumentAsync(
+            content: memoryStream,
+            fileName: "Nutrition.pdf",
+            tags: tags,
+            index: "default"
+        );
     }
 }

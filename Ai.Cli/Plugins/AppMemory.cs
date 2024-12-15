@@ -6,9 +6,9 @@ namespace Ai.Cli.Plugins;
 
 public class AppMemory
 {
-    private readonly MemoryServerless _memory;
+    private readonly IKernelMemory _memory;
 
-    public AppMemory(MemoryServerless memory)
+    public AppMemory(IKernelMemory memory)
     {
         _memory = memory;
     }
