@@ -7,12 +7,16 @@
 
 // https://learn.microsoft.com/en-us/semantic-kernel/concepts/kernel?pivots=programming-language-csharp
 
+#pragma warning disable SKEXP0110
+#pragma warning disable SKEXP0001
+
 using Ai.Cli;
 using Ai.Cli.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
@@ -50,17 +54,18 @@ builder.Services.AddSingleton<WeatherForecaster>();
 
 
 // Create the plugin collection (using the KernelPluginFactory to create plugins from objects)
-builder.Services.AddSingleton<KernelPluginCollection>(serviceProvider => 
+builder.Services.AddSingleton<KernelPluginCollection>(serviceProvider =>
     [
         KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<TimeTeller>()),
         KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<ElectricCar>()),
-        KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<TripPlanner>()),
+        // KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<TripPlanner>()),
         KernelPluginFactory.CreateFromObject(serviceProvider.GetRequiredService<WeatherForecaster>()),
     ]
 );
 
 // Finally, create the Kernel service with the service provider and plugin collection
-builder.Services.AddTransient(serviceProvider=> {
+builder.Services.AddTransient(serviceProvider =>
+{
     var pluginCollection = serviceProvider.GetRequiredService<KernelPluginCollection>();
     return new Kernel(serviceProvider, pluginCollection);
 });
@@ -97,6 +102,19 @@ var openAiSettings = new OpenAIPromptExecutionSettings
     ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
 };
 
+var agent = new ChatCompletionAgent
+{
+    Name = "TripPlannerAgent",
+    Instructions =
+        """
+           I'm going to plan a short one day vacation to {{destination}}. I would like to start around {{timeOfDay}}.
+           Before I do that, can you succinctly recommend the top 2 steps I should take in a numbered list?
+           I want to make sure I don't forget to pack anything for the weather at my destination and my car is sufficiently charged before I start the journey.
+           """,
+    Kernel = kernel,
+    Arguments = new KernelArguments(openAiSettings)
+};
+
 while (true)
 {
     Console.Write("Juan Miguel: ");
@@ -107,16 +125,8 @@ while (true)
     Console.ForegroundColor = ConsoleColor.Green;
     Console.Write("AI: ");
 
-// var response = await chat.GetChatMessageContentsAsync(chatHistory);
-// var lastMessage = response.Last();
-
-    var result = chat.GetStreamingChatMessageContentsAsync(
-        chatHistory: chatHistory,
-        kernel: kernel,
-        executionSettings: openAiSettings);
-
-    // var result = chat.GetStreamingChatMessageContentsAsync(chatHistory: chatHistory); // Without settings
-
+    var result = agent.InvokeAsync(history: chatHistory, arguments: null, kernel: kernel);
+    
     var assistantMessage = "";
     await foreach (var response in result)
     {
