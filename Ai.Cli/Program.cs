@@ -82,6 +82,8 @@ public class Program
         // await ImportDocument1(memory);
         // await ImportDocument2(memory);
 
+        // await memory.DeleteDocumentAsync("");
+
         builder.Services.AddSingleton<IKernelMemory>(_ => memory);
 
         // Create singletons of your plugins
@@ -198,7 +200,7 @@ public class Program
         }
     }
 
-    private static async Task ImportDocument1(IKernelMemory memory)
+    private static async Task<string> ImportDocument1(IKernelMemory memory)
     {
         const string filePath = @"C:\Cloud\OneDrive\Documents\MemberCare\AI Knowledge\Diabetes ES.pdf";
         var fileBytes = await File.ReadAllBytesAsync(filePath);
@@ -210,16 +212,18 @@ public class Program
             new KeyValuePair<string, List<string?>>("Health", ["Diabetes", "Chronic Diseases", "Glucose", "Endocrinology"]),
             new KeyValuePair<string, List<string?>>("Education", ["Disease Awareness", "Health Education", "Prevention"])
         };
-            
-        await memory.ImportDocumentAsync(
+        
+        var documentId = await memory.ImportDocumentAsync(
             content: memoryStream,
             fileName: "Diabetes ES.pdf",
             tags: tags,
             index: "default"
         );
+
+        return documentId;
     }
     
-    private static async Task ImportDocument2(IKernelMemory memory)
+    private static async Task<string> ImportDocument2(IKernelMemory memory)
     {
         const string filePath = @"C:\Cloud\OneDrive\Documents\MemberCare\AI Knowledge\Nutrition.pdf";
         var fileBytes = await File.ReadAllBytesAsync(filePath);
@@ -259,11 +263,13 @@ public class Program
             ])
         };
         
-        await memory.ImportDocumentAsync(
+        var documentId = await memory.ImportDocumentAsync(
             content: memoryStream,
             fileName: "Nutrition.pdf",
             tags: tags,
             index: "default"
         );
+
+        return documentId;
     }
 }
